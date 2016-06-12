@@ -30,15 +30,17 @@ struct database {
 
 // this is a tree with a circular list where, each node has a subtree of nodes
 struct node {
+    struct database *base; // database
     int *array; // elements selected from the database
     int class; // node class
-    int class_status; // class state to be used with the class
     int result; // 0..n = answer
+    double entropy;
+    double information_gain;
     struct node *next; // to be used in the list
     struct node *children; // to be used by the tree
 };
 
-double entropy(struct database *data, int *array, int size);
+double entropy(struct database *data, int *array, int size_array, int class, double *class_values, int size_class_values);
 
 struct database *create_database(int size_database, int size_classes);
 

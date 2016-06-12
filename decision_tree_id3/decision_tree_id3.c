@@ -106,67 +106,136 @@ int check_value_exist(double *atributes, int *atributes_found, double new_value)
     return 0; // new atribute
 }
 
-// calculate the sum of a determined class received
-// class = int with the number of the chosen class
-double entropy_sum(struct database *data, int *array, int size_array, int class) {
+static void quantity_atributes(struct database *data, int *array, int size_array, int class, double *aux_local, int *atrib_local, int atributes) {
     assert(data);
     assert(data->atributes);
     assert(array);
-    if(size_array < 1) return -1;
-
-    int atributes=1, i, j=0;
-    double aux[size_array]; // local with the values of the atributes
-    for(i=0; i < size_array; i++) {
-        aux[i] = -1;
-    }
-    // find the number of atributes of the given class
-    aux[0] = data->atributes[array[0]][class].value;
-    for(i=1; i < size_array; i++) {
-        check_value_exist(&aux, &atributes, data->atributes[array[i]][class].value);
-    }
+    assert(aux_local); // local with the values of the atributes
+    assert(atrib_local); // array with the sum of each atribute
+    if(size_array < 1 || class > data->size_classes) return;
+    if(size_array > data->size_database || class < 0) return;
 
     // calculate the quantity of each atribute
-    int j, atrib[*atributes]; // array with the sum of each atribute
-    for(i=0; i < *atributes; i++) {
-        atrib[i] = 0;
+    int j, i;
+    for(i=0; i < atributes; i++) {
+        atrib_local[i] = 0;
         for(j = 0; j < size_array; j++) {
-            if(data->atributes[array[j]][class].value == aux[i]) {
-                atrib[i] += 1;
+            if(data->atributes[array[j]][class].value == aux_local[i]) {
+                atrib_local[i] += 1;
             }
+        }
+    }
+}
+
+static void search_atributes(struct database *data, int *array, int size_array, int class, double *aux_local, int *atributes) {
+    assert(data);
+    assert(data->atributes);
+    assert(array);
+    assert(atributes);
+    assert(aux_local); // local with the values of the atributes
+    if(size_array < 1 || class > data->size_classes) return;
+    if(size_array > data->size_database || class < 0) return;
+
+    int i;
+    for(i=0; i < size_array; i++) {
+        aux_local[i] = -1;
+    }
+    // find the number of atributes of the given class
+    aux_local[0] = data->atributes[array[0]][class].value;
+    for(i=1; i < size_array; i++) {
+        check_value_exist(aux_local, atributes, data->atributes[array[i]][class].value);
+    }
+}
+
+// calculate the entropy of a determined class received
+// data = all the database
+// array = array of integers with the indices of the selected tuples from data
+// size_array = size of the array
+// class = int with the number of the chosen class
+// class_values = possible values of the final class(aswer)
+// size_class_values = size of the class_values
+double entropy(struct database *data, int *array, int size_array, int class, double *class_values, int size_class_values) {
+    assert(data);
+    assert(data->atributes);
+    assert(array);
+    assert(class_values);
+    if(size_class_values < 1) return -1;
+    if(size_array < 1 || class > data->size_classes) return -1;
+    if(size_array > data->size_database || class < 0) return -1;
+
+    // aux[] = array with the atributes found
+    // atributes = sum of all the quantity of atributes
+    double aux[size_array];
+    int atributes=1;
+    search_atributes(data, array, size_array, class, aux, &atributes);
+
+    // atrib[] = array with the quantity of each atribute, (sequence matches with aux[])
+    int atrib[atributes];
+    quantity_atributes(data, array, size_array, class, aux, atrib, atributes);
+
+    int i, j;
+/*    printf("atributes: %d\n", atributes);
+    for(i=0; i < atributes; i++) {
+        printf("%d ", atrib[i]);
+        printf("%f %d\n", aux[i], size_array);
+    }
+*/
+/*
+    quantity_class_values =
+                 class i    | class j ...
+    atribube k | quantity x | ...
+    atribube l | quantity y | ...
+        .      | quantity w | ...
+        .      | quantity z | ...
+*/
+    double quantity_class_values[atributes][size_class_values];
+    for(i=0; i < atributes; i++) {
+        for(j=0; j < size_class_values; j++) {
+            quantity_class_values[i][j] = 0.0;
+        }
+    }
+
+    // function that set quantity_class_values
+    int k;
+    for(i=0; i < atributes; i++) {
+        for(j=0; j < data->size_database; j++) {
+            if(j >= size_array || array[j] > data->size_database) break;
+            if(data->atributes[array[j]][class].value == aux[i]) {
+                for(k=0; k < size_class_values; k++) {
+                    if(data->atributes[array[j]][data->size_classes-1].value == class_values[k]) {
+                        quantity_class_values[i][k] += 1.0;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+/*
+    for(i=0; i < atributes; i++) {
+        for(j=0; j < size_class_values; j++) {
+            printf("%f, ", quantity_class_values[i][j]);
+        }
+        printf("\n");
+    }
+*/
+    double quantity[size_class_values];
+    for(i=0; i < size_class_values; i++) {
+        quantity[i] = 0.0;
+        for(j=0; j < atributes; j++) {
+            quantity[i] += quantity_class_values[j][i];
         }
     }
 
     double sum=0;
-
-    // make the sum
-    // calculate the number of possibilities of the answer class
-    // and then make the sum of the entropy
-    // double sum=0;
-    // for(i=0; i < *atributes; i++) {
-    //     sum +=
-    // }
-
+    for(i=0; i < size_class_values; i++) {
+        //printf("%f\n", quantity[i]);
+        if(quantity[i] == 0) continue; // to evite -nan results
+        sum += -(quantity[i]/size_array) * (log10(quantity[i]/size_array) / log10(2));
+    }
+    //printf("sum:%f\n", sum);
+    return sum;
 }
 /*
-// data = all the database
-// array = array 0f integers with the indices of the selected tuples from data
-// size = size of the array
-double entropy(struct database *data, int *array, int size) {
-    assert(data);
-    assert(data->tuples);
-    assert(array);
-    if(size < 1) return 0;
-
-
-
-    int i;
-    for(i=0; i < size; i++) {
-
-    }
-
-    return 0;
-}
-
 void add_list(struct node *list_root, struct node *new) {
     assert(list_root);
     assert(new);
@@ -227,6 +296,78 @@ void free_database(struct database *base) {
     free(base->atributes);
     free(base);
 }
+
+static void mount_sub_array(struct database *data, int *array, int size_array, int class, int *sub_array, int size_sub_array, double value) {
+    assert(data);
+    assert(data->atributes);
+    assert(array);
+    assert(sub_array);
+    if(size_sub_array < 1) return;
+    if(size_array < 1 || class > data->size_classes) return;
+    if(size_array > data->size_database || class < 0) return;
+
+    int i, j=0;
+    for(i=0; i < size_array; i++) {
+        if(data->atributes[array[i]][class].value == value) {
+            if(j >= size_sub_array) {
+                printf("Error: sub_array value wrong");
+                return;
+            }
+            sub_array[j] = array[i];
+            j++;
+        }
+    }
+}
+
+double information_gain(double entropy_parent, struct database *data, int *array, int size_array, int class, double *class_values, int size_class_values) {
+    assert(data);
+    assert(data->atributes);
+    assert(array);
+    if(size_array < 1 || class > data->size_classes) return -1;
+    if(size_array > data->size_database || class < 0) return -1;
+
+    // aux[] = array with the atributes found
+    // atributes = sum of all the quantity of atributes
+    double aux[size_array];
+    int atributes=1;
+    search_atributes(data, array, size_array, class, aux, &atributes);
+
+    // atrib[] = array with the quantity of each atribute, (sequence matches with aux[])
+    int atrib[atributes];
+    quantity_atributes(data, array, size_array, class, aux, atrib, atributes);
+
+
+    int i;
+    int **sub_array = (int **)calloc(atributes, sizeof(int*));
+    assert(sub_array);
+    for(i=0; i < atributes; i++) {
+        sub_array[i] = (int*)calloc(atrib[i], sizeof(int));
+        assert(sub_array[i]);
+        mount_sub_array(data, array, size_array, class, sub_array[i], atrib[i], aux[i]);
+    }
+
+    // calculate entropy of the children
+    double entropy_children[atributes];
+    for(i=0; i < atributes; i++) {
+        entropy_children[i] = entropy(data, sub_array[i], atrib[i], class, class_values, size_class_values);
+    }
+
+    for(i=0; i < atributes; i++) {
+        free(sub_array[i]);
+    }
+    free(sub_array);
+
+    // calculate the average_entropy_children
+    double average_entropy_children=0;
+    for(i=0; i < atributes; i++) {
+        average_entropy_children += (((double) atrib[i]) / ((double) size_array)) * entropy_children[i];
+    }
+
+    // return the information gain of the class
+    return (entropy_parent - average_entropy_children);
+}
+
+
 /*
 // table = a tabela completa, com todos os dados
 // array = um vetor com os indices dos seus dados da table
@@ -246,11 +387,26 @@ int main(void) {
 
     char file[] = "../jogar_tenis_normalizada.in";
     int size_database=14, size_classes=5;
+    int size_array=14;
+    int array[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
+    //int array[] = {1, 5, 6, 10, 11, 13};
+    //int array[] = {0, 2, 3, 4, 7, 8, 9, 12};
+    double class_values[] = {1.0, 0.0};
+    int size_class_values = 2;
 
-    struct database *base = mount_database(file, size_database, size_classes);
-    assert(base);
+    struct database *data = mount_database(file, size_database, size_classes);
+    assert(data);
 
-    free_database(base);
+    double sum = entropy(data, array, size_array, 0, class_values, size_class_values);
+
+    int i;
+    for(i=0; i < size_classes - 1; i++) {
+        double gain = information_gain(sum, data, array, size_array, i, class_values, size_class_values);
+
+        printf("information gain: %s, %f\n", data->classes[i].name, gain);
+    }
+
+    free_database(data);
     printf("ok\n");
 
     return 0;
