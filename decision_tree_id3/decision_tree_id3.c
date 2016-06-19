@@ -1,413 +1,329 @@
 /*
 Author: Luis Angelo Loss de Castro
 */
-
+#include "database.h"
+#include "functions_decision_tree_id3.h"
 #include "decision_tree_id3.h"
+#include "list_insertion_sort.h"
 
-struct database *create_database(int size_database, int size_classes) {
-    if (size_database < 1 || size_classes < 2) return NULL;
+// RECEIVE:
+//      a database, a struct my_data node_data, a node_atribute, a node_value,
+//      a node_entropy and a node_information_gain
+// RETURN:
+//      if ok then
+//          a node of the type struct node *
+//      else
+//          NULL
+// PARAMETERS:
+//      data = database
+//      node_data = array with her tuples of the database
+//      node_atribute = an atribute
+//      node_value = a value of the atribute
+//      node_class = the class of the node indicating he is a leaf
+//      node_entropy = the entropy of the node
+//      node_information_gain = the information gain of the node
+struct node *create_node(struct database *data, struct my_data *node_data, int node_atribute, double node_value, double node_class, double node_entropy, double node_information_gain) {
+    assert(data);
+    assert(data->atributes);
+    assert(node_data);
+    assert(node_data->my_data_array);
+    if(node_data->size_my_data_array > data->size_database) return NULL;
+    if(node_data->size_my_data_array < 0) return NULL;
 
-    struct database *base = (struct database*)calloc(1, sizeof(struct database));
-    assert(base);
-
-    base->classes = (struct class*)calloc(size_classes, sizeof(struct class));
-    assert(base->classes);
-    base->size_classes = size_classes;
-
-    base->atributes = (struct atribute**)calloc(size_database, sizeof(struct atribute*));
-    assert(base->atributes);
-    base->size_database = size_database;
-
-    int i;
-    for(i=0; i < size_database; i++) {
-        base->atributes[i] = (struct atribute*)calloc(size_classes, sizeof(struct atribute));
-        assert(base->atributes[i]);
-    }
-
-    return base;
-}
-
-struct database *mount_database(const char *file_name, int size_database, int size_classes) {
-    assert(file_name);
-    if(size_database < 1 || size_classes < 2) return NULL;
-
-    FILE *fp = NULL;
-    errno = 0; // variable for error on fopen
-    fp = fopen(file_name, "r");
-    if(fp == NULL) {
-        printf("Errno: %d\n", errno);
-        return NULL;
-    }
-
-    struct database *base = create_database(size_database, size_classes);
-    assert(base);
-
-    char name[100];
-
-    int cont, j;
-    for(cont=0; cont < size_classes; cont++) {
-        fscanf(fp, "%s", name);
-        j = strlen(name);
-        base->classes[cont].name = (char *)calloc(j, sizeof(char)); // XXX check memory leak
-        strcpy(base->classes[cont].name, name);
-        base->classes[cont].status = '0';
-    }
-
-    double i;
-    int atrib = cont; // number of atributes
-    cont=0;
-    while(cont < size_database) {
-        for(j=0; j < atrib; j++) {
-            fscanf(fp, "%lf,", &i);
-            base->atributes[cont][j].value = i;
-        }
-        cont++;
-    }
-
-    fclose(fp);
-
-    return base;
-}
-/*
-struct node *create_node(int class, int class_status, int result) {
-    if(result < 0) return NULL;
-
-    struct node *node = (struct node *)calloc(1, sizeof(node));
+    struct node *node = (struct node *)calloc(1, sizeof(struct node));
     assert(node);
 
-    node->class = class;
-    node->class_status = class_status;
-    node->result = result;
+    node->data = data;
+    node->node_data = node_data;
+    node->node_atribute = node_atribute;
+    node->node_value = node_value;
+    node->node_class = node_class;
+    node->node_entropy = node_entropy;
+    node->node_information_gain = node_information_gain;
     node->next = NULL;
     node->children = NULL;
 
     return node;
 }
-*/
-// atributes_found = quantity of atributes found
-// atributes = array with the atributes already found
-// new_value = new value to search in the array atributes
-// XXX the value of the atributes has to be only positives
-// return a boolean if the value exists
-// if not exists, add the new atribute
-int check_value_exist(double *atributes, int *atributes_found, double new_value) {
-    assert(atributes);
-    if(*atributes_found < 0) return -1;
 
-    int i=0;
-    while(i < *atributes_found) {
-        if(new_value == atributes[i]) {
-            return 1; // atributes already exist
-        }
-        i++;
-    }
-    atributes[i] = new_value; // set the new atribute
-    (*atributes_found)++;
-    return 0; // new atribute
-}
-
-static void quantity_atributes(struct database *data, int *array, int size_array, int class, double *aux_local, int *atrib_local, int atributes) {
+// RECEIVE:
+//      a database
+// RETURN:
+//      if ok then
+//          a node of the type struct node * representing the root of the tree
+//          automatically set the atribute how 'used' on the database
+//      else
+//          NULL
+// PARAMETERS:
+//      data = database
+// PRECAUTIONS:
+//      XXX RETURN DYNAMIC ALLOCATION
+struct node *create_root(struct database *data) {
     assert(data);
     assert(data->atributes);
-    assert(array);
-    assert(aux_local); // local with the values of the atributes
-    assert(atrib_local); // array with the sum of each atribute
-    if(size_array < 1 || class > data->size_classes) return;
-    if(size_array > data->size_database || class < 0) return;
 
-    // calculate the quantity of each atribute
-    int j, i;
-    for(i=0; i < atributes; i++) {
-        atrib_local[i] = 0;
-        for(j = 0; j < size_array; j++) {
-            if(data->atributes[array[j]][class].value == aux_local[i]) {
-                atrib_local[i] += 1;
-            }
-        }
-    }
-}
+    struct my_data *my_data = (struct my_data *)calloc(1, sizeof(struct my_data));
+    assert(my_data);
 
-static void search_atributes(struct database *data, int *array, int size_array, int class, double *aux_local, int *atributes) {
-    assert(data);
-    assert(data->atributes);
-    assert(array);
-    assert(atributes);
-    assert(aux_local); // local with the values of the atributes
-    if(size_array < 1 || class > data->size_classes) return;
-    if(size_array > data->size_database || class < 0) return;
+    my_data->my_data_array = (int *)calloc(data->size_database, sizeof(int));
+    assert(my_data->my_data_array);
+    my_data->size_my_data_array = data->size_database;
 
     int i;
-    for(i=0; i < size_array; i++) {
-        aux_local[i] = -1;
-    }
-    // find the number of atributes of the given class
-    aux_local[0] = data->atributes[array[0]][class].value;
-    for(i=1; i < size_array; i++) {
-        check_value_exist(aux_local, atributes, data->atributes[array[i]][class].value);
-    }
-}
-
-// calculate the entropy of a determined class received
-// data = all the database
-// array = array of integers with the indices of the selected tuples from data
-// size_array = size of the array
-// class = int with the number of the chosen class
-// class_values = possible values of the final class(aswer)
-// size_class_values = size of the class_values
-double entropy(struct database *data, int *array, int size_array, int class, double *class_values, int size_class_values) {
-    assert(data);
-    assert(data->atributes);
-    assert(array);
-    assert(class_values);
-    if(size_class_values < 1) return -1;
-    if(size_array < 1 || class > data->size_classes) return -1;
-    if(size_array > data->size_database || class < 0) return -1;
-
-    // aux[] = array with the atributes found
-    // atributes = sum of all the quantity of atributes
-    double aux[size_array];
-    int atributes=1;
-    search_atributes(data, array, size_array, class, aux, &atributes);
-
-    // atrib[] = array with the quantity of each atribute, (sequence matches with aux[])
-    int atrib[atributes];
-    quantity_atributes(data, array, size_array, class, aux, atrib, atributes);
-
-    int i, j;
-/*    printf("atributes: %d\n", atributes);
-    for(i=0; i < atributes; i++) {
-        printf("%d ", atrib[i]);
-        printf("%f %d\n", aux[i], size_array);
-    }
-*/
-/*
-    quantity_class_values =
-                 class i    | class j ...
-    atribube k | quantity x | ...
-    atribube l | quantity y | ...
-        .      | quantity w | ...
-        .      | quantity z | ...
-*/
-    double quantity_class_values[atributes][size_class_values];
-    for(i=0; i < atributes; i++) {
-        for(j=0; j < size_class_values; j++) {
-            quantity_class_values[i][j] = 0.0;
-        }
+    for(i=0; i < data->size_database; i++) {
+        my_data->my_data_array[i] = i;
     }
 
-    // function that set quantity_class_values
-    int k;
-    for(i=0; i < atributes; i++) {
-        for(j=0; j < data->size_database; j++) {
-            if(j >= size_array || array[j] > data->size_database) break;
-            if(data->atributes[array[j]][class].value == aux[i]) {
-                for(k=0; k < size_class_values; k++) {
-                    if(data->atributes[array[j]][data->size_classes-1].value == class_values[k]) {
-                        quantity_class_values[i][k] += 1.0;
-                        break;
-                    }
-                }
-            }
-        }
-    }
-/*
-    for(i=0; i < atributes; i++) {
-        for(j=0; j < size_class_values; j++) {
-            printf("%f, ", quantity_class_values[i][j]);
-        }
-        printf("\n");
-    }
-*/
-    double quantity[size_class_values];
-    for(i=0; i < size_class_values; i++) {
-        quantity[i] = 0.0;
-        for(j=0; j < atributes; j++) {
-            quantity[i] += quantity_class_values[j][i];
-        }
-    }
+    double _entropy = entropy(data, my_data);
 
-    double sum=0;
-    for(i=0; i < size_class_values; i++) {
-        //printf("%f\n", quantity[i]);
-        if(quantity[i] == 0) continue; // to evite -nan results
-        sum += -(quantity[i]/size_array) * (log10(quantity[i]/size_array) / log10(2));
-    }
-    //printf("sum:%f\n", sum);
-    return sum;
-}
-/*
-void add_list(struct node *list_root, struct node *new) {
-    assert(list_root);
-    assert(new);
-
-    new->next = list_root->next;
-    list_root->next = new;
-}
-
-struct node *create_list(struct database *table, int *array, int size) {
-    // calcula entropia
-    // cria a lista de cada estado possivel
-    // retorna a lista
-}
-
-void add_children(struct node *node, struct node *new) {
-
-}
-
-void free_list(struct node *root) {
+    struct node *root = create_node(data, my_data, -1, -1, -1, _entropy, -1);
     assert(root);
 
-    struct node *aux = root;
-    while(root) {
+    double gain_children[data->quantity_atributes];
+    double bigger=0;
+    int indice=0;
+    for(i=0; i < data->quantity_atributes - 1; i++) {
+        gain_children[i] = information_gain(_entropy, data, my_data, i);
+        if(gain_children[i] > bigger) {
+            bigger = gain_children[i];
+            indice = i;
+        }
+    }
+
+    root->node_information_gain = bigger;
+    root->node_atribute = indice;
+
+    data->ids[indice].status = '1';
+
+    return root;
+}
+
+// RECEIVE:
+//      a node that is the parent and a list of nodes still undefined
+// RETURN:
+//      if ok then
+//          a node of the type struct node * representing the start of a list
+//          with the children
+//      else
+//          NULL
+// PARAMETERS:
+//      parent = node parent
+//      list = a list of undefined nodes
+// PRECAUTIONS:
+//      XXX RETURN DYNAMIC ALLOCATION
+//      uses free_list, add_sorted_list and add from list_insertion_sort
+struct node *create_children(struct node *parent, struct node_list **list) {
+    assert(parent);
+    assert(parent->data);
+    assert(parent->data->atributes);
+    assert(parent->node_data);
+    assert(list);
+
+    struct values_found *values_found = atribute_values(parent->data, parent->node_data, parent->node_atribute);
+    assert(values_found);
+
+    struct position_values *position_value = (struct position_values *)calloc(1, sizeof(struct position_values));
+    assert(position_value);
+
+    position_value->values_found = values_found;
+    position_value->atribute = parent->node_atribute;
+
+    position_values(parent->data, parent->node_data, position_value);
+    assert(position_value->positions);
+
+    if(values_found->size_values_found > 1) {
+        struct my_data *array = (struct my_data*)calloc(1, sizeof(struct my_data));
+        assert(array);
+        array->my_data_array = position_value->positions[0].my_data_array;
+        array->size_my_data_array = position_value->positions[0].size_my_data_array;
+
+        parent->children = create_node(parent->data, array, parent->node_atribute, values_found->values[0], -1, entropy(parent->data, array), -1);
+        assert(parent->children);
+        parent->children->parent = parent;
+        add_sorted_list(list, parent->children);
+
+        struct node *_list = parent->children;
+        int i;
+        for(i=1; i < position_value->size_positions; i++) {
+            struct my_data *aux_array = (struct my_data*)calloc(1, sizeof(struct my_data));
+            assert(aux_array);
+            aux_array->my_data_array = position_value->positions[i].my_data_array;
+            aux_array->size_my_data_array = position_value->positions[i].size_my_data_array;
+
+            _list->next = create_node(parent->data, aux_array, parent->node_atribute, values_found->values[i], -1, entropy(parent->data, aux_array), -1);
+            assert(_list->next);
+            _list->next->parent = parent;
+            add_sorted_list(list, _list->next);
+            _list = _list->next;
+        }
+    }
+
+    free(values_found->values);
+    free(values_found);
+    free(position_value->positions);
+    free(position_value);
+
+    return parent->children;
+}
+
+// RECEIVE:
+//      a node that is a head of a list
+// RETURN: nothing
+// PARAMETERS:
+//      list = node head of a list
+void free_list(struct node *list) {
+    if(list == NULL) return;
+
+    struct node *aux = list;
+
+    while(aux) {
         aux = aux->next;
-        free(root);
-        root = aux;
+        free(list->node_data->my_data_array);
+        free(list->node_data);
+        free(list);
+        list = aux;
     }
 }
 
+// RECEIVE:
+//      a node that is a head of a list of the type struct node_list
+//      and a node of the tree
+// RETURN: nothing, but calculate the information gain of the node and set him
+//         and add him to the list of the type struct node_list
+// PARAMETERS:
+//      list = node head of a list of the type struct node_list
+//      node = node of the tree
+void add_sorted_list(struct node_list **list, struct node *node) {
+    assert(list);
+    assert(node);
+    assert(node->data);
+    assert(node->node_data);
+
+    if(node->node_entropy == 0.0) {
+        node->node_class = node->data->atributes[node->node_data->my_data_array[0]][node->data->quantity_atributes-1].value;
+        return;
+    }
+
+    double gain_children[node->data->quantity_atributes];
+    double bigger=-1;
+    int indice=0, i;
+    for(i=0; i < node->data->quantity_atributes -1; i++) {
+        if(node->data->ids[i].status == '1') continue;
+        gain_children[i] = information_gain(node->node_entropy, node->data, node->node_data, i);
+        if(gain_children[i] > bigger) {
+            bigger = gain_children[i];
+            indice = i;
+        }
+    }
+
+    node->node_information_gain = bigger;
+    node->node_atribute = indice;
+
+    node->data->ids[indice].status = '1';
+
+    add(list, node);
+}
+
+// RECEIVE:
+//      the database
+// RETURN:
+//      a node representing the root of the decision tree created
+// PARAMETERS:
+//      data = database
+// PRECAUTIONS:
+//      RETURNS DYNAMIC ALLOCATION
+//      uses create_root, create_children and pop(list_insertion_sort)
+struct node *create_tree(struct database *data) {
+    assert(data);
+    assert(data->atributes);
+
+    struct node *root = create_root(data);
+    assert(root);
+    assert(root->node_data);
+    assert(root->data);
+    assert(root->node_data->my_data_array);
+
+    struct node_list *_list = NULL;
+    create_children(root, &_list);
+    struct node *node = pop(&_list);
+    assert(node);
+
+    while(node) {
+        create_children(node, &_list);
+        node = pop(&_list);
+        if(node == NULL) break;
+    }
+
+    return root;
+}
+
+// RECEIVE:
+//      the root of the tree
+// RETURN: nothing
+// PARAMETERS:
+//      root = root of the decision tree
+void print_tree(struct node *root) {
+    if(root == NULL) return;
+
+    int i;
+    printf("a:%d, c:%f: ", root->node_atribute, root->node_class);
+    for(i=0; i < root->node_data->size_my_data_array; i++) {
+        printf("%d, ", root->node_data->my_data_array[i]);
+    }
+    printf("\n");
+
+    print_tree(root->children);
+    print_tree(root->next);
+}
+
+// RECEIVE:
+//      the root of a decision tree
+// RETURN: nothing
+// PARAMETERS:
+//      root = root of a decision tree
 void free_tree(struct node *root) {
     if(root == NULL) return;
 
-    struct node *next = root->next;
-    struct node *child = root->children;
+    free_tree(root->next);
+    free_tree(root->children);
 
+    free(root->node_data->my_data_array);
+    free(root->node_data);
     free(root);
-    free_tree(child);
-    free_tree(next);
-}
-*/
-void free_database(struct database *base) {
-    assert(base);
-    assert(base->classes);
-    assert(base->atributes);
-
-    int i;
-    for(i=0; i < base->size_classes; i++) {
-        assert(base->classes[i].name);
-        free(base->classes[i].name);
-    }
-    free(base->classes);
-
-    for(i=0; i < base->size_database; i++) {
-        assert(base->atributes[i]);
-        free(base->atributes[i]);
-    }
-
-    free(base->atributes);
-    free(base);
 }
 
-static void mount_sub_array(struct database *data, int *array, int size_array, int class, int *sub_array, int size_sub_array, double value) {
-    assert(data);
-    assert(data->atributes);
-    assert(array);
-    assert(sub_array);
-    if(size_sub_array < 1) return;
-    if(size_array < 1 || class > data->size_classes) return;
-    if(size_array > data->size_database || class < 0) return;
+// RECEIVE:
+//      a list and a value to search for
+// RETURN:
+//      a node that has the value
+// PARAMETERS:
+//      list = a list of the type struct node
+//      value = a value to search in the list
+struct node *search_list(struct node *list, double value) {
+    assert(list);
 
-    int i, j=0;
-    for(i=0; i < size_array; i++) {
-        if(data->atributes[array[i]][class].value == value) {
-            if(j >= size_sub_array) {
-                printf("Error: sub_array value wrong");
-                return;
-            }
-            sub_array[j] = array[i];
-            j++;
+    struct node *aux = list;
+    while(aux) {
+        if(aux->node_value == value) {
+            break;
         }
+        aux = aux->next;
     }
+    return aux;
 }
 
-double information_gain(double entropy_parent, struct database *data, int *array, int size_array, int class, double *class_values, int size_class_values) {
-    assert(data);
-    assert(data->atributes);
+// RECEIVE:
+//      a root of a tree and an tuple(array) to search for
+// RETURN:
+//      the value of the class on the decision tree
+// PARAMETERS:
+//      root = the root of the tree
+//      array = an array representing a tuple with the values
+double search(struct node *root, double *array) {
     assert(array);
-    if(size_array < 1 || class > data->size_classes) return -1;
-    if(size_array > data->size_database || class < 0) return -1;
 
-    // aux[] = array with the atributes found
-    // atributes = sum of all the quantity of atributes
-    double aux[size_array];
-    int atributes=1;
-    search_atributes(data, array, size_array, class, aux, &atributes);
-
-    // atrib[] = array with the quantity of each atribute, (sequence matches with aux[])
-    int atrib[atributes];
-    quantity_atributes(data, array, size_array, class, aux, atrib, atributes);
-
-
-    int i;
-    int **sub_array = (int **)calloc(atributes, sizeof(int*));
-    assert(sub_array);
-    for(i=0; i < atributes; i++) {
-        sub_array[i] = (int*)calloc(atrib[i], sizeof(int));
-        assert(sub_array[i]);
-        mount_sub_array(data, array, size_array, class, sub_array[i], atrib[i], aux[i]);
+    if(root->node_class < 0) {
+        return search(search_list(root->children, array[root->node_atribute]), array);
     }
-
-    // calculate entropy of the children
-    double entropy_children[atributes];
-    for(i=0; i < atributes; i++) {
-        entropy_children[i] = entropy(data, sub_array[i], atrib[i], class, class_values, size_class_values);
-    }
-
-    for(i=0; i < atributes; i++) {
-        free(sub_array[i]);
-    }
-    free(sub_array);
-
-    // calculate the average_entropy_children
-    double average_entropy_children=0;
-    for(i=0; i < atributes; i++) {
-        average_entropy_children += (((double) atrib[i]) / ((double) size_array)) * entropy_children[i];
-    }
-
-    // return the information gain of the class
-    return (entropy_parent - average_entropy_children);
-}
-
-
-/*
-// table = a tabela completa, com todos os dados
-// array = um vetor com os indices dos seus dados da table
-struct node *create_tree(struct database *table, int *array) {
-
-    // calcula entropia de todos
-    // a maior entropia vira o no raiz
-    // seus filhos serao os seus possiveis estados(ensolarado, nublado, chuvoso, etc..)
-    // cria uma lista simples dos filhos do tipo noh
-    // faz o cabeca apontar para a lista
-    // cada noh da lista tem um vetor com os dados do seu correspondente estado
-    // chama o algoritmo recursivamente
-    // na volta, chama o algoritmo recursivamente para o proximo da lista
-}
-*/
-int main(void) {
-
-    char file[] = "../jogar_tenis_normalizada.in";
-    int size_database=14, size_classes=5;
-    int size_array=14;
-    int array[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13};
-    //int array[] = {1, 5, 6, 10, 11, 13};
-    //int array[] = {0, 2, 3, 4, 7, 8, 9, 12};
-    double class_values[] = {1.0, 0.0};
-    int size_class_values = 2;
-
-    struct database *data = mount_database(file, size_database, size_classes);
-    assert(data);
-
-    double sum = entropy(data, array, size_array, 0, class_values, size_class_values);
-
-    int i;
-    for(i=0; i < size_classes - 1; i++) {
-        double gain = information_gain(sum, data, array, size_array, i, class_values, size_class_values);
-
-        printf("information gain: %s, %f\n", data->classes[i].name, gain);
-    }
-
-    free_database(data);
-    printf("ok\n");
-
-    return 0;
+    return root->node_class;
 }
