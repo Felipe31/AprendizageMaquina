@@ -11,55 +11,42 @@ Author: Luis Angelo Loss de Castro
 #include <errno.h>
 #include <math.h>
 #include <string.h>
-
-struct atribute {
-    double value;
-};
-
-struct class {
-    char *name;
-    char status; // '0' = not used, '1' = used
-};
-
-struct database {
-    struct atribute **atributes; // table with all the tuples
-    struct class *classes; // only one tuple with the name of classes and your status
-    int size_database;
-    int size_classes;
-};
+#include "database.h"
+#include "functions_decision_tree_id3.h"
+#include "list_insertion_sort.h"
 
 // this is a tree with a circular list where, each node has a subtree of nodes
 struct node {
-    struct database *base; // database
-    int *array; // elements selected from the database
-    int class; // node class
-    int result; // 0..n = answer
-    double entropy;
-    double information_gain;
+    struct database *data; // database
+    struct my_data *node_data;
+    int node_atribute; // 0, 1, 2, ... number of the atribute(column)
+    double node_value; // value of the atribute(line) -1 = is not a leaf
+    double node_class; // value of the class(answer) -1 = is not a leaf
+    double node_entropy;
+    double node_information_gain;
     struct node *next; // to be used in the list
     struct node *children; // to be used by the tree
+    struct node *parent;
 };
 
-double entropy(struct database *data, int *array, int size_array, int class, double *class_values, int size_class_values);
+struct node *create_node(struct database *data, struct my_data *node_data, int node_atribute, double node_value, double node_class, double node_entropy, double node_information_gain);
 
-struct database *create_database(int size_database, int size_classes);
+struct node *create_root(struct database *data);
 
-struct database *mount_database(const char *file_name, int size_database, int size_classes);
+struct node *create_children(struct node *parent, struct node_list **list);
 
-struct node *create_node(int class, int class_status, int result);
+void free_list(struct node *list);
 
-void add_list(struct node *list_root, struct node *new);
+void add_sorted_list(struct node_list **list, struct node *node);
 
-struct node *create_list(struct database *table, int *array, int size);
+struct node *create_tree(struct database *data);
 
-void add_children(struct node *node, struct node *new);
-
-void free_list(struct node *root);
+void print_tree(struct node *root);
 
 void free_tree(struct node *root);
 
-void free_database(struct database *base);
+struct node *search_list(struct node *list, double value);
 
-struct node *create_tree(struct database *table, int *array);
+double search(struct node *root, double *array);
 
 #endif
