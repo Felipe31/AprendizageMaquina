@@ -90,11 +90,8 @@ void TEST_choose_class() {
     free_distances(dist);
 }
 
-void TEST_knn() {
-    char file[] = "../test_weka.in";
-    int size_database=435, quantity_atributes=17;
+void TEST_knn(char *file, int size_database, int quantity_atributes, int k) {
     int size_class_values = 2;
-
     struct database *data = mount_database(file, size_database, quantity_atributes);
     assert(data);
     data->class_values = (double *)calloc(size_class_values, sizeof(double));
@@ -105,10 +102,9 @@ void TEST_knn() {
 
     int **confusion_matrix = create_confusion_matrix();
 
-    int k=45;
     knn(data, k, confusion_matrix);
 
-    printf("\nTP:%d, FN:%d\nFP:%d, TN:%d\n",
+    printf("TP:%d, FN:%d\nFP:%d, TN:%d\n",
         confusion_matrix[0][0], confusion_matrix[0][1],
         confusion_matrix[1][0], confusion_matrix[1][1]);
 
@@ -132,7 +128,18 @@ int main(void) {
     //
     // TEST_choose_class();
 
-    TEST_knn();
+    char file[] = "../treinamento.in";
+    int size_database=290, quantity_atributes=17;
+
+    char file1[] = "../teste.in";
+    int size_database1=145;
+    int k=7;
+
+    printf("Treinamento:\n");
+    TEST_knn(file, size_database, quantity_atributes, k);
+
+    printf("\nTeste:\n");
+    TEST_knn(file1, size_database1, quantity_atributes, k);
 
     return 0;
 }

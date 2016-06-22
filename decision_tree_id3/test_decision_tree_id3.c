@@ -141,8 +141,8 @@ void TEST_create_children() {
 }
 
 void TEST_create_tree() {
-    char file[] = "../test_weka.in";
-    int size_database=435, quantity_atributes=17;
+    char file[] = "../treinamento.in", file_test[] = "../teste.in";
+    int size_database=290, size_database_test=145, quantity_atributes=17;
     int size_class_values = 2;
 
     struct database *data = mount_database(file, size_database, quantity_atributes);
@@ -155,25 +155,52 @@ void TEST_create_tree() {
 
     struct node *root = create_tree(data);
 
-    int i;
-    for(i=0; i < data->quantity_atributes; i++) {
-        printf("status:%c\n", data->ids[i].status);
+    //print_tree(root);
+    //print_atributes_name(data);
+
+    struct database *test = mount_database(file_test, size_database_test, quantity_atributes);
+    assert(test);
+    test->class_values = (double *)calloc(size_class_values, sizeof(double));
+    assert(test->class_values);
+    test->size_class_values = size_class_values;
+    test->class_values[0] = 1.0;
+    test->class_values[1] = 0.0;
+
+    double out[size_database_test], array[quantity_atributes-1];
+    int i, j;
+    for(i=0; i < size_database_test; i++) {
+        for(j=0; j < quantity_atributes - 1; j++) {
+            array[j] = test->atributes[i][j].value;
+        }
+        out[i] = search(root, array);
+        //printf("%.1f\n", out[i]);
     }
 
-    print_tree(root);
-    print_atributes_name(data);
+    int confusion_matrix[2][2] = {{0, 0},
+                                  {0, 0}};
 
-    // double array[4];
-    // for(i=0; i < data->size_database; i++) {
-    //     array[0] = data->atributes[i][0].value;
-    //     array[1] = data->atributes[i][1].value;
-    //     array[2] = data->atributes[i][2].value;
-    //     array[3] = data->atributes[i][3].value;
-    //     printf("j:%.1f\n", search(root, array));
-    // }
+    for(i=0; i < size_database_test; i++) {
+        if(out[i] >= 0.5) {
+            if(test->atributes[i][test->quantity_atributes-1].value >= 0.5) confusion_matrix[0][0] += 1;
+            else confusion_matrix[1][0] += 1;
+        } else {
+            if(test->atributes[i][test->quantity_atributes-1].value <= 0.5) confusion_matrix[1][1] += 1;
+            else confusion_matrix[0][1] += 1;
+        }
+    }
+
+    printf("TP:%d, FN:%d\nFP:%d, TN:%d\n",
+        confusion_matrix[0][0], confusion_matrix[0][1],
+        confusion_matrix[1][0], confusion_matrix[1][1]);
+
+    double k = (double)(confusion_matrix[0][0] + confusion_matrix[1][1]);
+    double l = (double)(confusion_matrix[0][0] + confusion_matrix[0][1] +
+                confusion_matrix[1][0] + confusion_matrix[1][1]);
+    printf("accuracy: %f\n", (double)(k/l));
 
     free_tree(root);
     free_database(data);
+    free_database(test);
 }
 
 int main(void) {

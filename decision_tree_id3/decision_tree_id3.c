@@ -266,11 +266,13 @@ void print_tree(struct node *root) {
     if(root == NULL) return;
 
     int i;
-    printf("a:%d, c:%f: ", root->node_atribute, root->node_class);
-    for(i=0; i < root->node_data->size_my_data_array; i++) {
-        printf("%d, ", root->node_data->my_data_array[i]);
-    }
-    printf("\n");
+    //if(root->node_class != -1.0) {
+        printf("a:%d, c:%f: ", root->node_atribute, root->node_class);
+        for(i=0; i < root->node_data->size_my_data_array; i++) {
+            printf("%d, ", root->node_data->my_data_array[i]);
+        }
+        printf("\n");
+    //}
 
     print_tree(root->children);
     print_tree(root->next);
@@ -300,7 +302,7 @@ void free_tree(struct node *root) {
 //      list = a list of the type struct node
 //      value = a value to search in the list
 struct node *search_list(struct node *list, double value) {
-    assert(list);
+    if(list == NULL) return NULL;
 
     struct node *aux = list;
     while(aux) {
@@ -322,8 +324,13 @@ struct node *search_list(struct node *list, double value) {
 double search(struct node *root, double *array) {
     assert(array);
 
-    if(root->node_class < 0) {
-        return search(search_list(root->children, array[root->node_atribute]), array);
+    if(root->node_class == -1) {
+        struct node *aux = search_list(root->children, array[root->node_atribute]);
+        if(aux == NULL) {
+            return root->node_value;
+        } else {
+            return search(aux, array);
+        }
     }
     return root->node_class;
 }

@@ -13,7 +13,7 @@ functions_decision_tree_id3.o: functions_decision_tree_id3.c functions_decision_
 	gcc -c -g -lm -Wall -Wextra functions_decision_tree_id3.c functions_decision_tree_id3.h
 
 list_insertion_sort.o: database.o functions_decision_tree_id3.o decision_tree_id3.h list_insertion_sort.c list_insertion_sort.h
-	gcc -c -g -lm -Wall -Wextra list_insertion_sort.c list_insertion_sort.h database.o functions_decision_tree_id3.o decision_tree_id3.h
+	gcc -c -g -lm -Wall -Wextra list_insertion_sort.c list_insertion_sort.h decision_tree_id3.h
 
 test_decision_tree_id3: functions_decision_tree_id3.o database.o list_insertion_sort.o decision_tree_id3.c decision_tree_id3.h test_decision_tree_id3.c
 	gcc -g -lm -Wall -Wextra -o test_decision_tree_id3 test_decision_tree_id3.c functions_decision_tree_id3.o database.o list_insertion_sort.o decision_tree_id3.c decision_tree_id3.h
