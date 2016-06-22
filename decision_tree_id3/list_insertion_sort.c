@@ -1,8 +1,4 @@
 
-/*
-Author: Luis Angelo Loss de Castro
-*/
-
 #include "list_insertion_sort.h"
 
 struct node_list *add(struct node_list **list, struct node *new_node) {

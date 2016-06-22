@@ -3,10 +3,6 @@
 
 #define FIXED_SIZE 200
 
-/*
-Author: Luis Angelo Loss de Castro
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>

@@ -1,10 +1,6 @@
 #ifndef _DATABASE
 #define _DATABASE
 
-/*
-Author: Luis Angelo Loss de Castro
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>

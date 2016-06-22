@@ -1,9 +1,5 @@
 #include "database.h"
 
-/*
-Author: Luis Angelo Loss de Castro
-*/
-
 // functions to CREATE data
 // =============================================
 

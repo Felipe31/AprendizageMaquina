@@ -1,9 +1,6 @@
 #ifndef _LIST_INSERTION_SORT
 #define _LIST_INSERTION_SORT
 
-/*
-Author: Luis Angelo Loss de Castro
-*/
 #include <stdio.h>
 #include <stdlib.h>
 #include "database.h"

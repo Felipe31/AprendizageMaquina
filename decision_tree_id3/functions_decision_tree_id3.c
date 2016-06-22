@@ -1,6 +1,3 @@
-/*
-Author: Luis Angelo Loss de Castro
-*/
 #include "database.h"
 #include "functions_decision_tree_id3.h"
 

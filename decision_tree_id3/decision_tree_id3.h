@@ -1,10 +1,6 @@
 #ifndef _DECISION_TREE_ID3
 #define _DECISION_TREE_ID3
 
-/*
-Author: Luis Angelo Loss de Castro
-*/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
