@@ -1,7 +1,7 @@
 all: perceptron
 
-perceptron: database.o perceptron.o test_perceptron.c
-	gcc -lm -g -Wall -Wextra -o test_perceptron database.o perceptron.o test_perceptron.c
+perceptron: database.c perceptron.c test_perceptron.c
+	gcc -lm -g -Wall -Wextra -o test_perceptron database.c perceptron.c test_perceptron.c
 
 perceptron.o: perceptron.c perceptron.h
 	gcc -c -lm -g -Wall -Wextra perceptron.c perceptron.h

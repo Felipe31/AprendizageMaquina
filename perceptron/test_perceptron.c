@@ -1,8 +1,15 @@
 #include "perceptron.h"
 
+
+int activation(double u) {
+    if (u >= 1.0) return 1;
+    return 0;
+}
+
+
 int main() {
-    char file[] = "../jogar_tenis_normalizada.in";
-    int size_database=14, quantity_atributes=5;
+    char file[] = "../test_weka.in";
+    int size_database=435, quantity_atributes=17;
     int size_class_values = 2;
 
     struct database *data = mount_database(file, size_database, quantity_atributes);
@@ -13,7 +20,7 @@ int main() {
     data->class_values[0] = 1.0;
     data->class_values[1] = 0.0;
 
-    perceptron(data, 10000);
+    perceptron(data, 1);
 
     free_database(data);
 }
