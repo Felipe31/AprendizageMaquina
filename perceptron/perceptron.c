@@ -21,6 +21,11 @@ void printMatrix(double** matrix, int i, int j) {
 
 }
 
+int activation(double u) {
+    if (u >= 1.0) return 1;
+    return 0;
+}
+
 // x tem uma posição a mais, pois a última armazena o resultado real, que é usado para comparações
 int * instancia(struct atribute *x, int i, double *w, int *bias) {
     double u = 0.0;

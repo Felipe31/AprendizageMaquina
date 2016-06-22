@@ -1,12 +1,6 @@
 #include "perceptron.h"
 
 
-int activation(double u) {
-    if (u >= 1.0) return 1;
-    return 0;
-}
-
-
 int main() {
     char file[] = "../test_weka.in";
     int size_database=435, quantity_atributes=17;
@@ -20,7 +14,7 @@ int main() {
     data->class_values[0] = 1.0;
     data->class_values[1] = 0.0;
 
-    perceptron(data, 1);
+    perceptron(data, 50);
 
     free_database(data);
 }
